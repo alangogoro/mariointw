@@ -1,33 +1,22 @@
-name: Deploy to GitHub Pages
+name: Publish to gh-pages
 
+# ✅ Pages 的發布來源是 gh-pages 分支，這個 workflow 負責把 main 同步過去
 on:
   push:
     branches: [main]
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # ✅ enablement 讓首次執行時自動開啟 Pages，不需手動到 Settings 設定
-      - uses: actions/configure-pages@v5
-        with:
-          enablement: true
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: '.'
-      - id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Force gh-pages to match main
+        run: git push origin HEAD:gh-pages --force

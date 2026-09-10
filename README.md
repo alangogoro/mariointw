@@ -4,18 +4,21 @@
 
 **遊戲只有一個 `index.html`，上傳到 GitHub Pages 後，打開連結就能玩。** 不需要 npm、編譯或素材資料夾。
 
-## 上傳並取得遊戲連結
+## 立即遊玩
 
-1. 在 GitHub 建立公開 Repository，例如 `mariointw`。
-2. 使用 **Add file → Upload files**，將 `index.html` 放在 Repository 根目錄並提交。也可以一併上傳本 README 和 `.gitignore`。
-3. 開啟 **Settings → Pages**。
-4. 在 **Build and deployment → Source** 選擇 **Deploy from a branch**。
-5. Branch 選擇剛才上傳的分支（通常為 `main`），資料夾選擇 **/(root)**，按 **Save**。
-6. 等候部署完成，從 Pages 頁面按 **Visit site**。把這個網址交給老師或同學，開啟即可遊玩。
+**遊戲網址：<https://alangogoro.github.io/mariointw/>**
 
-請分享 Pages 遊戲網址，而不是 GitHub 程式碼頁或 Raw 檔案網址。之後更新同一個 `index.html` 並提交，Pages 會重新部署。
+手機、平板、桌機瀏覽器打開即可，不需要安裝任何東西。
 
-設定步驟依 [GitHub Pages 官方文件](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site)。本專案尚未連接或發布至任何 GitHub Repository。
+## 部署方式
+
+本專案已連接到 <https://github.com/alangogoro/mariointw>，並透過 `.github/workflows/deploy-pages.yml` 自動部署到 GitHub Pages。修改 `index.html` 後推送到 `main`，Actions 會重新部署，遊戲網址不變。
+
+```bash
+git add index.html
+git commit -m "update game"
+git push
+```
 
 ## 操作
 
