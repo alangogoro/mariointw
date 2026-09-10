@@ -15,7 +15,7 @@
     :root { color-scheme:light; --ink:#102b39; --cream:#fff1cf; --red:#e97054; --yellow:#ffd46b; --mint:#78d4bf; --text-min:18px; }
     * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
     html,body { margin:0; width:100%; height:100%; overflow:hidden; overscroll-behavior:none; touch-action:none; }
-    body { background:#c9e9ee; color:var(--cream); font-family:'Zen Maru Gothic',sans-serif; font-size:var(--text-min); font-weight:700; user-select:none; }
+    body { background:#c9e9ee; color:var(--cream); font-family:'Zen Maru Gothic',sans-serif; font-size:var(--text-min); font-weight:700; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
     button { font:inherit; min-width:44px; min-height:44px; cursor:pointer; touch-action:manipulation; }
     button:focus-visible { outline:3px solid var(--yellow); outline-offset:5px; }
     button:disabled { opacity:.4; cursor:default; }
@@ -79,7 +79,7 @@
     #toast { position:fixed; top:var(--toast-top,222px); left:50%; transform:translateX(-50%); width:max-content; max-width:calc(100% - 28px); padding:9px 17px; background:#102b39f2; color:var(--cream); border:1px solid #9abeb8; border-radius:4px; font-size:18px; line-height:1.5; z-index:8; text-align:center; pointer-events:none; }
     .touch-controls { display:none; position:fixed; bottom:max(24px,env(safe-area-inset-bottom)); left:24px; right:24px; z-index:5; justify-content:space-between; align-items:flex-end; pointer-events:none; }
     .direction { display:flex; gap:13px; }
-    .touch-btn { width:68px; height:64px; color:var(--cream); background:#173c4de8; border:2px solid #9ccdc5; border-radius:9px; box-shadow:0 5px 0 #071b26; font-size:26px; pointer-events:auto; touch-action:none; }
+    .touch-btn { width:68px; height:64px; color:var(--cream); background:#173c4de8; border:2px solid #9ccdc5; border-radius:9px; box-shadow:0 5px 0 #071b26; font-size:26px; pointer-events:auto; touch-action:none; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
     .touch-btn.jump { width:80px; height:80px; background:#d25f49ed; border-color:#ffdca4; font-size:24px; border-radius:50%; }
     .touch-btn.pressed { transform:translateY(4px); box-shadow:0 1px 0 #071b26; background:#458a83; }
     @media (hover:none),(pointer:coarse) { .touch-controls { display:flex; } .footer { display:none; } }
@@ -1164,11 +1164,23 @@
       const name=bindings[event.code];if(name){downCodes.add(event.code);keys.add(name);if(name==='jump')requestJump();}
     });
     window.addEventListener('keyup',event=>{const name=bindings[event.code];downCodes.delete(event.code);if(name&&![...downCodes].some(code=>bindings[code]===name))keys.delete(name);});
+    // ✅ 手機以 Touch Events 為主：iOS 長按會啟動選字／callout 並中斷 pointer 串流，造成方向鍵放不掉或失靈
+    const hasTouchEvents='ontouchstart' in window;
     for(const button of document.querySelectorAll('[data-control]')){
-      button.addEventListener('pointerdown',event=>{event.preventDefault();audio.unlock();if(state!=='running')return;button.setPointerCapture(event.pointerId);pointers.set(event.pointerId,button.dataset.control);button.classList.add('pressed');if(button.dataset.control==='jump')requestJump();});
-      const release=event=>{pointers.delete(event.pointerId);if(![...pointers.values()].includes(button.dataset.control))button.classList.remove('pressed');};
-      button.addEventListener('pointerup',release);button.addEventListener('pointercancel',release);button.addEventListener('lostpointercapture',release);
+      const control=button.dataset.control;
+      const press=key=>{if(state!=='running')return;pointers.set(key,control);button.classList.add('pressed');if(control==='jump')requestJump();};
+      const release=key=>{pointers.delete(key);if(![...pointers.values()].includes(control))button.classList.remove('pressed');};
+      button.addEventListener('pointerdown',event=>{event.preventDefault();audio.unlock();if(event.pointerType==='touch'&&hasTouchEvents)return;button.setPointerCapture(event.pointerId);press('p'+event.pointerId);});
+      const pointerRelease=event=>{if(event.pointerType==='touch'&&hasTouchEvents)return;release('p'+event.pointerId);};
+      button.addEventListener('pointerup',pointerRelease);button.addEventListener('pointercancel',pointerRelease);button.addEventListener('lostpointercapture',pointerRelease);
+      // ⚠️ passive:false 才能 preventDefault，擋掉長按選字、callout 與雙擊縮放；touchend 必定回到按下時的按鈕，等同 pointer capture
+      button.addEventListener('touchstart',event=>{event.preventDefault();audio.unlock();const selection=window.getSelection&&window.getSelection();if(selection)selection.removeAllRanges();for(const touch of event.changedTouches)if(button.contains(touch.target))press('t'+touch.identifier);},{passive:false});
+      const touchRelease=event=>{if(event.cancelable)event.preventDefault();for(const touch of event.changedTouches)if(button.contains(touch.target))release('t'+touch.identifier);};
+      button.addEventListener('touchend',touchRelease,{passive:false});button.addEventListener('touchcancel',touchRelease,{passive:false});
     }
+    // ✅ 保險：畫面上已經沒有手指時清掉殘留的觸控輸入，任何漏收的 touchend 都不會卡鍵
+    const dropStuckTouches=event=>{if(event.touches.length)return;for(const key of [...pointers.keys()])if(String(key)[0]==='t')pointers.delete(key);for(const b of document.querySelectorAll('.touch-btn'))if(![...pointers.values()].includes(b.dataset.control))b.classList.remove('pressed');};
+    window.addEventListener('touchend',dropStuckTouches,{passive:true});window.addEventListener('touchcancel',dropStuckTouches,{passive:true});
     window.addEventListener('blur',()=>{downCodes.clear();clearInput();pause(true);});
     document.addEventListener('visibilitychange',()=>{if(document.hidden){downCodes.clear();clearInput();pause(true);}});
     window.addEventListener('resize',resize);window.addEventListener('contextmenu',e=>e.preventDefault());
